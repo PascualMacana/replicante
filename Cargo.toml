@@ -1,0 +1,12 @@
+[package]
+name = "replicante"
+version = "0.1.0"
+edition = "2021"
+description = "Constructor auto-reproductor: un programa que escribe una copia compilable de sí mismo."
+license = "MIT"
+publish = false
+repository = "https://github.com/PascualMacana/replicante"
+
+[[bin]]
+name = "replicante"
+path = "src/main.rs"
