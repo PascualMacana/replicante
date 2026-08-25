@@ -72,4 +72,4 @@ El hijo queda con `GENERATION = 1` y `LINEAGE = "0.1"`. Cuando *ese* hijo se com
 
 ## Por qué existe
 
-Quise tener en las manos la diferencia entre **auto-replicarse** y **auto-mejorarse**. Esto es lo primero. Lo segundo sería que el hijo no solo nazca, sino que sea *mejor* que el padre (una Darwin / Red Queen Gödel Machine). Ese es otro programa.
+Quise tener en las manos la diferencia entre **auto-replicarse** y **auto-mejorarse**. Esto es lo primero. Lo segundo es [mejorante](https://github.com/PascualMacana/mejorante): el hijo no solo nace, nace *mejor*.
