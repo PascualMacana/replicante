@@ -1,26 +1,19 @@
 # replicante
 
-Un programa en Rust que **se copia a sí mismo**: el binario lleva embebido su genoma (las fuentes) y puede escribir un proyecto Cargo hijo que, al compilarse, puede hacer lo mismo.
+A small Rust program that copies itself. The binary carries its own source and can write a child Cargo project that, once compiled, can do the same thing.
 
-No es un LLM. No se reentrena. No se propaga por la red. Es un constructor a lo von Neumann: la máquina lleva adentro la descripción de cómo reconstruirse.
+It is not a language model and it does not spread by itself. You point it at a folder; it only writes there.
 
 ```
-generación 0  ──spawn──►  generación 1  ──spawn──►  generación 2
-   linaje 0                  linaje 0.1               linaje 0.1.2
+generation 0  ──spawn──►  generation 1  ──spawn──►  generation 2
+lineage    0               lineage    0.1            lineage    0.1.2
 ```
 
-## Qué es (y qué no)
+The child is the same program, one generation later. It does not get smarter; it just inherits the genome and bumps the counter.
 
-| Concepto | Esto |
-|---|---|
-| **Quine** | Un programa que *imprime* su fuente. `replicante genome` se acerca. |
-| **Constructor auto-reproductor** | Un programa que *escribe* una copia funcional de sí. Esto. |
-| **Auto-mejora (máquina de Gödel)** | Produce una versión *mejor*, no solo una copia. Esto no mejora: solo hereda y cuenta generaciones. |
-| **Gusano / malware** | Se copia a otros discos, procesos o redes sin que se lo pidan. Esto **no**. |
+## Run it
 
-El hijo nace solo donde vos indicás, un directorio por invocación. Hace falta `rustc`/`cargo` para que el hijo "viva" (el genoma necesita un compilador, como el ADN una célula).
-
-## Uso
+You need [Rust](https://rustup.rs/).
 
 ```bash
 cargo build --release
@@ -31,20 +24,23 @@ cargo build --release
 ./nieto/target/debug/replicante identity
 ```
 
-Comandos:
+`identity` prints generation, lineage, and the embedded files.  
+`spawn ./hijo --build` writes a child crate into `./hijo` and compiles it.
+
+## Commands
 
 ```
-replicante              ayuda
-replicante identity     generación, linaje, archivos del genoma
-replicante genome       imprime las fuentes embebidas
-replicante spawn <dir>  escribe el proyecto hijo
-                 --build   compila al hijo con cargo
-                 --force   pisa un hijo anterior
+replicante              help
+replicante identity     generation, lineage, genome files
+replicante genome       print the embedded sources
+replicante spawn <dir>  write a child Cargo project
+                 --build   compile that child
+                 --force   overwrite a previous child
 ```
 
-## Cómo funciona
+## How it works
 
-En compile-time, `include_str!` mete cada archivo del repo adentro del binario:
+At compile time, `include_str!` embeds every project file inside the binary:
 
 ```rust
 const GENOME: &[(&str, &str)] = &[
@@ -54,22 +50,23 @@ const GENOME: &[(&str, &str)] = &[
 ];
 ```
 
-`spawn` los escribe a disco y parchea dos constantes en `src/main.rs`:
+`spawn` writes those files to disk and updates two constants in `src/main.rs`:
 
 ```rust
 const GENERATION: u32 = 0;
 const LINEAGE: &str = "0";
 ```
 
-El hijo queda con `GENERATION = 1` y `LINEAGE = "0.1"`. Cuando *ese* hijo se compila, su `include_str!` ya captura la fuente nueva. La herencia es real: no es copiar el ejecutable (el fenotipo), es copiar y mutar el genoma.
+The child gets `GENERATION = 1` and `LINEAGE = "0.1"`. When you compile it, its own `include_str!` captures that new source. What is copied is the genome, not the executable.
 
-## Límites a propósito
+The child still needs `rustc` / `cargo` to become runnable.
 
-- Un solo hijo por corrida. No hay loop, cron, ni fork bomb.
-- No toca `$HOME`, `/`, `/usr`, `/etc`, ni el directorio desde el que corrés.
-- `--force` solo borra un destino que ya parece un `replicante`.
-- Cero red: no crea repos, no pega a APIs, no se envía por mail.
+## Safety
 
-## Por qué existe
+- One child per run. No background loops, no network.
+- It will not write over your home directory, `/`, `/usr`, `/etc`, or the directory you are standing in.
+- `--force` only deletes a folder that already looks like a `replicante` project.
 
-Quise tener en las manos la diferencia entre **auto-replicarse** y **auto-mejorarse**. Esto es lo primero. Lo segundo es [mejorante](https://github.com/PascualMacana/mejorante): el hijo no solo nace, nace *mejor*.
+## Related
+
+[mejorante](https://github.com/PascualMacana/mejorante) is a sibling that copies itself and also tries to improve.
