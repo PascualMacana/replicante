@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 230" role="img" aria-label="A parent cell budding off a daughter">
+  <rect width="800" height="230" rx="16" fill="#f4f6f3"/>
+  <text x="400" y="28" text-anchor="middle" fill="#3d4a3a" font-family="Georgia, serif" font-size="15">a cell copies itself</text>
+
+  <!-- 1 idle -->
+  <g transform="translate(100 125)">
+    <ellipse rx="52" ry="40" fill="#cfeee9" stroke="#1e6f6a" stroke-width="3"/>
+    <circle r="11" fill="#1e6f6a"/>
+    <text y="4" text-anchor="middle" fill="#f4f6f3" font-family="ui-monospace, monospace" font-size="12" font-weight="700">0</text>
+    <text y="68" text-anchor="middle" fill="#5b6758" font-family="Georgia, serif" font-size="12">parent</text>
+  </g>
+
+  <path d="M168 125 L208 125" stroke="#8a9586" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 2 bulge -->
+  <g transform="translate(280 125)">
+    <ellipse rx="52" ry="40" fill="#cfeee9" stroke="#1e6f6a" stroke-width="3"/>
+    <ellipse cx="44" cy="0" rx="24" ry="22" fill="#d7f0c8" stroke="#2f7a32" stroke-width="3"/>
+    <circle r="11" fill="#1e6f6a"/>
+    <text y="4" text-anchor="middle" fill="#f4f6f3" font-family="ui-monospace, monospace" font-size="12" font-weight="700">0</text>
+    <text y="68" text-anchor="middle" fill="#5b6758" font-family="Georgia, serif" font-size="12">bulge</text>
+  </g>
+
+  <path d="M348 125 L388 125" stroke="#8a9586" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 3 pinch -->
+  <g transform="translate(470 125)">
+    <ellipse rx="48" ry="38" fill="#cfeee9" stroke="#1e6f6a" stroke-width="3"/>
+    <ellipse cx="58" cy="0" rx="32" ry="28" fill="#d7f0c8" stroke="#2f7a32" stroke-width="3"/>
+    <circle r="11" fill="#1e6f6a"/>
+    <text y="4" text-anchor="middle" fill="#f4f6f3" font-family="ui-monospace, monospace" font-size="12" font-weight="700">0</text>
+    <circle cx="58" r="10" fill="#2f7a32"/>
+    <text x="58" y="4" text-anchor="middle" fill="#f4f6f3" font-family="ui-monospace, monospace" font-size="12" font-weight="700">1</text>
+    <text y="68" text-anchor="middle" fill="#5b6758" font-family="Georgia, serif" font-size="12">pinch</text>
+  </g>
+
+  <path d="M548 125 L588 125" stroke="#8a9586" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 4 daughters: parent stays -->
+  <g transform="translate(630 125)">
+    <ellipse rx="40" ry="34" fill="#cfeee9" stroke="#1e6f6a" stroke-width="3"/>
+    <circle r="11" fill="#1e6f6a"/>
+    <text y="4" text-anchor="middle" fill="#f4f6f3" font-family="ui-monospace, monospace" font-size="12" font-weight="700">0</text>
+  </g>
+  <g transform="translate(710 125)">
+    <ellipse rx="36" ry="30" fill="#d7f0c8" stroke="#2f7a32" stroke-width="3"/>
+    <circle r="11" fill="#2f7a32"/>
+    <text y="4" text-anchor="middle" fill="#f4f6f3" font-family="ui-monospace, monospace" font-size="12" font-weight="700">1</text>
+  </g>
+  <text x="670" y="193" text-anchor="middle" fill="#5b6758" font-family="Georgia, serif" font-size="12">parent stays · daughter 1</text>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" fill="#8a9586"/>
+    </marker>
+  </defs>
+</svg>

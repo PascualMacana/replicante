@@ -3,6 +3,8 @@
 //! El binario lleva su genoma (fuentes) embebido en compile-time.
 //! `spawn <dir>` escribe un proyecto Cargo hijo que, al compilares, puede hacer lo mismo.
 
+mod dish;
+
 use std::env;
 use std::error::Error;
 use std::fs;
@@ -15,6 +17,8 @@ const LINEAGE: &str = "0";
 const GENOME: &[(&str, &str)] = &[
     ("Cargo.toml", include_str!("../Cargo.toml")),
     ("src/main.rs", include_str!("main.rs")),
+    ("src/dish.rs", include_str!("dish.rs")),
+    ("cell.svg", include_str!("../cell.svg")),
     ("README.md", include_str!("../README.md")),
     (".gitignore", include_str!("../.gitignore")),
     ("LICENSE", include_str!("../LICENSE")),
@@ -48,6 +52,42 @@ fn main() {
                 process::exit(1);
             }
         }
+        Some("dish") => {
+            let mut splits: u32 = 8;
+            let mut delay_ms: u64 = 80;
+            while let Some(flag) = args.next() {
+                match flag.as_str() {
+                    "--gens" | "--splits" => {
+                        let v = args.next().unwrap_or_else(|| {
+                            eprintln!("uso: replicante dish --gens N");
+                            process::exit(2);
+                        });
+                        splits = v.parse().unwrap_or_else(|_| {
+                            eprintln!("no es un número: {v}");
+                            process::exit(2);
+                        });
+                    }
+                    "--delay" => {
+                        let v = args.next().unwrap_or_else(|| {
+                            eprintln!("uso: replicante dish --delay MS");
+                            process::exit(2);
+                        });
+                        delay_ms = v.parse().unwrap_or_else(|_| {
+                            eprintln!("no es un número: {v}");
+                            process::exit(2);
+                        });
+                    }
+                    other => {
+                        eprintln!("flag desconocida: {other}");
+                        process::exit(2);
+                    }
+                }
+            }
+            if let Err(e) = dish::run(GENERATION, LINEAGE, splits, delay_ms) {
+                eprintln!("error: {e}");
+                process::exit(1);
+            }
+        }
         Some(other) => {
             eprintln!("comando desconocido: {other}\n");
             help();
@@ -63,6 +103,9 @@ replicante — constructor auto-reproductor (generación {GENERATION}, linaje {L
 
   replicante identity          generación, linaje, archivos del genoma
   replicante genome            imprime las fuentes embebidas
+  replicante dish              anima una célula brotando hijas
+                   --gens N    cuántas hijas (default 8)
+                   --delay MS  ms entre frames (default 80)
   replicante spawn <dir>       escribe un proyecto Cargo hijo
                    --build     compila al hijo con cargo
                    --force     pisa un hijo anterior
@@ -259,6 +302,8 @@ mod tests {
     fn genome_lists_the_project() {
         let names: Vec<_> = GENOME.iter().map(|(n, _)| *n).collect();
         assert!(names.contains(&"src/main.rs"));
+        assert!(names.contains(&"src/dish.rs"));
+        assert!(names.contains(&"cell.svg"));
         assert!(names.contains(&"Cargo.toml"));
         assert!(names.contains(&"README.md"));
         assert!(names.contains(&"LICENSE"));

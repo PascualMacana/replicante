@@ -11,6 +11,14 @@ lineage    0               lineage    0.1            lineage    0.1.2
 
 The child is the same program, one generation later. It does not get smarter; it just inherits the genome and bumps the counter.
 
+![A parent cell budding off a daughter](cell.svg)
+
+Watch it happen in the terminal. The parent stays; a daughter pinches off. That is `spawn`, drawn as a cell.
+
+```bash
+cargo run -- dish
+```
+
 ## Run it
 
 You need [Rust](https://rustup.rs/).
@@ -33,6 +41,9 @@ cargo build --release
 replicante              help
 replicante identity     generation, lineage, genome files
 replicante genome       print the embedded sources
+replicante dish         animate a cell budding daughters
+                 --gens N  how many buds (default 8)
+                 --delay MS  ms per frame (default 80)
 replicante spawn <dir>  write a child Cargo project
                  --build   compile that child
                  --force   overwrite a previous child
