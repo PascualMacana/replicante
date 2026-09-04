@@ -47,7 +47,7 @@ fn main() {
                     }
                 }
             }
-            if let Err(e) = spawn(Path::new(&dest), force, build) {
+            if let Err(e) = spawn_cmd(Path::new(&dest), force, build) {
                 eprintln!("error: {e}");
                 process::exit(1);
             }
@@ -101,7 +101,7 @@ fn help() {
         "\
 replicante — constructor auto-reproductor (generación {GENERATION}, linaje {LINEAGE})
 
-  replicante identity          generación, linaje, archivos del genoma
+  replicante identity          generación, linaje, hijas, archivos del genoma
   replicante genome            imprime las fuentes embebidas
   replicante dish              anima una célula brotando hijas
                    --gens N    cuántas hijas (default 8)
@@ -110,15 +110,19 @@ replicante — constructor auto-reproductor (generación {GENERATION}, linaje {L
                    --build     compila al hijo con cargo
                    --force     pisa un hijo anterior
 
-El hijo hereda el genoma y suma una generación. No se copia por la red,
-no pisa el directorio actual, un solo hijo por corrida."
+El linaje cuenta hijas, no generaciones: 0 → 0.1 → 0.1.1.
+Un segundo hijo de 0 es 0.2. No se copia por la red, no pisa el
+directorio actual, un solo hijo por corrida."
     );
 }
 
 fn identity() {
+    let buds = read_brotes(Path::new("."));
     println!("replicante");
     println!("generación  {GENERATION}");
     println!("linaje      {LINEAGE}");
+    println!("hijas       {buds}");
+    println!("próximo     {}", child_lineage(LINEAGE, buds));
     println!("archivos    {}", GENOME.len());
     for (name, body) in GENOME {
         println!("  {name:<16}  {} bytes", body.len());
@@ -138,14 +142,39 @@ fn print_genome() {
     }
 }
 
+const BROTES: &str = ".brotes";
+
+pub(crate) fn child_lineage(parent: &str, buds: u32) -> String {
+    format!("{parent}.{}", buds + 1)
+}
+
+fn spawn_cmd(dest: &Path, force: bool, build: bool) -> Result<(), Box<dyn Error>> {
+    let dest = normalize_dest(dest)?;
+    let (lineage, record) = plan_birth(Path::new("."), LINEAGE, &dest, force)?;
+    spawn_lineage(&dest, force, build, &lineage)?;
+    if record {
+        record_birth(Path::new("."))?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
 fn spawn(dest: &Path, force: bool, build: bool) -> Result<(), Box<dyn Error>> {
+    spawn_lineage(dest, force, build, &child_lineage(LINEAGE, 0))
+}
+
+fn spawn_lineage(
+    dest: &Path,
+    force: bool,
+    build: bool,
+    next_lineage: &str,
+) -> Result<(), Box<dyn Error>> {
     let dest = normalize_dest(dest)?;
     assert_safe_dest(&dest)?;
     prepare_dest(&dest, force)?;
 
-    let child_main = rewrite_main(include_str!("main.rs"))?;
     let next_gen = GENERATION + 1;
-    let next_lineage = format!("{LINEAGE}.{next_gen}");
+    let child_main = rewrite_main(include_str!("main.rs"), next_gen, next_lineage)?;
 
     for (rel, contents) in GENOME {
         let body = if *rel == "src/main.rs" {
@@ -180,23 +209,87 @@ fn spawn(dest: &Path, force: bool, build: bool) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn rewrite_main(src: &str) -> Result<String, Box<dyn Error>> {
-    let next_gen = GENERATION + 1;
-    let next_lineage = format!("{LINEAGE}.{next_gen}");
+fn rewrite_main(src: &str, generation: u32, lineage: &str) -> Result<String, Box<dyn Error>> {
+    let src = patch_const_u32(src, "GENERATION", generation)?;
+    patch_const_str(&src, "LINEAGE", lineage)
+}
 
-    let from_g = format!("const GENERATION: u32 = {GENERATION};");
-    let to_g = format!("const GENERATION: u32 = {next_gen};");
-    if !src.contains(&from_g) {
-        return Err("no encuentro GENERATION en el genoma".into());
+fn patch_const_u32(src: &str, name: &str, new: u32) -> Result<String, Box<dyn Error>> {
+    let start_pat = format!("const {name}: u32 = ");
+    let start = src
+        .find(&start_pat)
+        .ok_or_else(|| format!("no encuentro {name} en el genoma"))?;
+    let value_start = start + start_pat.len();
+    let rel_end = src[value_start..]
+        .find(';')
+        .ok_or_else(|| format!("const {name} sin cierre"))?;
+    let mut out = String::with_capacity(src.len() + 8);
+    out.push_str(&src[..value_start]);
+    out.push_str(&new.to_string());
+    out.push_str(&src[value_start + rel_end..]);
+    Ok(out)
+}
+
+fn patch_const_str(src: &str, name: &str, new_val: &str) -> Result<String, Box<dyn Error>> {
+    if new_val.contains('"') || new_val.contains('\\') {
+        return Err("el valor no puede tener comillas ni backslash".into());
     }
+    let start_pat = format!("const {name}: &str = \"");
+    let start = src
+        .find(&start_pat)
+        .ok_or_else(|| format!("no encuentro {name} en el genoma"))?;
+    let value_start = start + start_pat.len();
+    let rel_end = src[value_start..]
+        .find('"')
+        .ok_or_else(|| format!("const {name} sin cierre"))?;
+    let mut out = String::with_capacity(src.len() + new_val.len());
+    out.push_str(&src[..value_start]);
+    out.push_str(new_val);
+    out.push_str(&src[value_start + rel_end..]);
+    Ok(out)
+}
 
-    let from_l = format!("const LINEAGE: &str = \"{LINEAGE}\";");
-    let to_l = format!("const LINEAGE: &str = \"{next_lineage}\";");
-    if !src.contains(&from_l) {
-        return Err("no encuentro LINEAGE en el genoma".into());
+fn read_const_str(dir: &Path, name: &str) -> Option<String> {
+    let src = fs::read_to_string(dir.join("src/main.rs")).ok()?;
+    let start_pat = format!("const {name}: &str = \"");
+    let start = src.find(&start_pat)?;
+    let value_start = start + start_pat.len();
+    let rel_end = src[value_start..].find('"')?;
+    Some(src[value_start..value_start + rel_end].to_string())
+}
+
+fn read_brotes(dir: &Path) -> u32 {
+    fs::read_to_string(dir.join(BROTES))
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0)
+}
+
+fn record_birth(parent: &Path) -> Result<(), Box<dyn Error>> {
+    if !looks_like_replicante(parent) {
+        return Ok(());
     }
+    let n = read_brotes(parent) + 1;
+    fs::write(parent.join(BROTES), format!("{n}\n"))?;
+    println!(
+        "padre  hijas {n}  → próximo linaje {}",
+        child_lineage(LINEAGE, n)
+    );
+    Ok(())
+}
 
-    Ok(src.replacen(&from_g, &to_g, 1).replacen(&from_l, &to_l, 1))
+fn plan_birth(
+    parent: &Path,
+    parent_lin: &str,
+    dest: &Path,
+    force: bool,
+) -> Result<(String, bool), Box<dyn Error>> {
+    if force && dest.exists() && looks_like_replicante(dest) {
+        if let Some(lin) = read_const_str(dest, "LINEAGE") {
+            return Ok((lin, false));
+        }
+    }
+    Ok((child_lineage(parent_lin, read_brotes(parent)), true))
 }
 
 fn normalize_dest(dest: &Path) -> Result<PathBuf, Box<dyn Error>> {
@@ -261,11 +354,7 @@ fn prepare_dest(dest: &Path, force: bool) -> Result<(), Box<dyn Error>> {
         .into());
     }
     if !looks_like_replicante(dest) {
-        return Err(format!(
-            "{} no parece un replicante; no lo borro",
-            dest.display()
-        )
-        .into());
+        return Err(format!("{} no parece un replicante; no lo borro", dest.display()).into());
     }
     fs::remove_dir_all(dest)?;
     fs::create_dir_all(dest)?;
@@ -285,17 +374,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn lineage_counts_daughters_not_generations() {
+        assert_eq!(child_lineage("0", 0), "0.1");
+        assert_eq!(child_lineage("0", 1), "0.2");
+        assert_eq!(child_lineage("0.1", 0), "0.1.1");
+        assert_ne!(child_lineage("0.1", 0), "0.1.2");
+    }
+
+    #[test]
     fn rewrite_bumps_generation_and_lineage() {
-        let next = rewrite_main(include_str!("main.rs")).unwrap();
-        assert!(next.contains(&format!(
-            "const GENERATION: u32 = {};",
-            GENERATION + 1
-        )));
-        assert!(next.contains(&format!(
-            "const LINEAGE: &str = \"{LINEAGE}.{}\";",
-            GENERATION + 1
-        )));
-        assert!(!next.contains(&format!("const GENERATION: u32 = {GENERATION};")));
+        let next = rewrite_main(include_str!("main.rs"), 1, "0.1").unwrap();
+        assert!(next.contains("const GENERATION: u32 = 1;"));
+        assert!(next.contains("const LINEAGE: &str = \"0.1\";"));
+    }
+
+    #[test]
+    fn grandchild_lineage_is_not_generation() {
+        let child = rewrite_main(include_str!("main.rs"), 1, &child_lineage(LINEAGE, 0)).unwrap();
+        let grand = rewrite_main(&child, 2, &child_lineage("0.1", 0)).unwrap();
+        assert!(grand.contains("const LINEAGE: &str = \"0.1.1\";"));
+        assert!(!grand.contains("const LINEAGE: &str = \"0.1.2\";"));
     }
 
     #[test]
@@ -317,13 +415,34 @@ mod tests {
         spawn(&dir, false, false).unwrap();
 
         let child_main = fs::read_to_string(dir.join("src/main.rs")).unwrap();
-        assert!(child_main.contains(&format!(
-            "const GENERATION: u32 = {};",
-            GENERATION + 1
-        )));
+        assert!(child_main.contains(&format!("const GENERATION: u32 = {};", GENERATION + 1)));
+        assert!(child_main.contains("const LINEAGE: &str = \"0.1\";"));
         assert!(dir.join("Cargo.toml").exists());
         assert!(dir.join("README.md").exists());
 
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn brotes_count_siblings() {
+        let dir = env::temp_dir().join(format!("replicante-brotes-{}", process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(dir.join("Cargo.toml"), "name = \"replicante\"\n").unwrap();
+        fs::write(
+            dir.join("src/main.rs"),
+            "const GENERATION: u32 = 0;\nconst LINEAGE: &str = \"0\";\n",
+        )
+        .unwrap();
+        assert_eq!(read_brotes(&dir), 0);
+        record_birth(&dir).unwrap();
+        assert_eq!(read_brotes(&dir), 1);
+        record_birth(&dir).unwrap();
+        assert_eq!(read_brotes(&dir), 2);
+        assert_eq!(child_lineage("0", read_brotes(&dir)), "0.3");
+        let (lin, rec) = plan_birth(&dir, "0", &dir.join("no-existe"), false).unwrap();
+        assert_eq!(lin, "0.3");
+        assert!(rec);
         fs::remove_dir_all(&dir).unwrap();
     }
 

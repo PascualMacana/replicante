@@ -6,10 +6,10 @@ It is not a language model and it does not spread by itself. You point it at a f
 
 ```
 generation 0  ──spawn──►  generation 1  ──spawn──►  generation 2
-lineage    0               lineage    0.1            lineage    0.1.2
+lineage    0               lineage    0.1            lineage    0.1.1
 ```
 
-The child is the same program, one generation later. It does not get smarter; it just inherits the genome and bumps the counter.
+The child is the same program, one generation later. Lineage counts daughters, not the generation number: the first child of `0` is `0.1`, its first child is `0.1.1`, and a second child of `0` is `0.2`. It does not get smarter; it just inherits the genome and bumps the counter.
 
 ![A parent cell budding off a daughter](cell.svg)
 

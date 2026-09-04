@@ -10,12 +10,7 @@ const HEIGHT: usize = 21;
 const MAX_CELLS: usize = 12;
 const BUD_FRAMES: u32 = 16;
 
-pub fn run(
-    origin_gen: u32,
-    origin_lineage: &str,
-    splits: u32,
-    delay_ms: u64,
-) -> io::Result<()> {
+pub fn run(origin_gen: u32, origin_lineage: &str, splits: u32, delay_ms: u64) -> io::Result<()> {
     let _cursor = HideCursor::new();
     let slots = slots();
     let mut cells = vec![Cell {
@@ -39,7 +34,7 @@ pub fn run(
         let parent = cells[pi].clone();
         let dest = slots[dest_slot];
         let d_gen = parent.generation + 1;
-        let d_lin = format!("{}.{}", parent.lineage, parent.buds + 1);
+        let d_lin = crate::child_lineage(&parent.lineage, parent.buds);
         cells[pi].buds += 1;
 
         for frame in 1..=BUD_FRAMES {
@@ -128,11 +123,7 @@ fn slots() -> Vec<(i32, i32)> {
     ]
 }
 
-fn pick_bud(
-    cells: &[Cell],
-    occupied: &[bool],
-    slots: &[(i32, i32)],
-) -> Option<(usize, usize)> {
+fn pick_bud(cells: &[Cell], occupied: &[bool], slots: &[(i32, i32)]) -> Option<(usize, usize)> {
     let mut order: Vec<usize> = (0..cells.len()).collect();
     order.sort_by_key(|&i| (cells[i].buds, i));
     for pi in order {
@@ -154,12 +145,7 @@ fn pick_bud(
     None
 }
 
-fn draw_scene(
-    cells: &[Cell],
-    bud: Option<&Bud>,
-    goal: u32,
-    done: u32,
-) -> io::Result<()> {
+fn draw_scene(cells: &[Cell], bud: Option<&Bud>, goal: u32, done: u32) -> io::Result<()> {
     let mut c = Canvas::new(WIDTH, HEIGHT);
     draw_dish(&mut c);
 
@@ -173,7 +159,14 @@ fn draw_scene(
         let y = lerp(bud.parent.y as f32, bud.dest.1 as f32, t.powf(0.85));
         let rx = lerp(2.5, 6.0, t);
         let ry = lerp(1.5, 3.0, t);
-        put_cell(&mut c, x.round() as i32, y.round() as i32, rx, ry, bud.d_gen);
+        put_cell(
+            &mut c,
+            x.round() as i32,
+            y.round() as i32,
+            rx,
+            ry,
+            bud.d_gen,
+        );
         let _ = &bud.d_lin;
     }
 
@@ -279,13 +272,7 @@ impl Canvas {
     }
 }
 
-fn present(
-    c: &Canvas,
-    cells: &[Cell],
-    status: &str,
-    done: u32,
-    goal: u32,
-) -> io::Result<()> {
+fn present(c: &Canvas, cells: &[Cell], status: &str, done: u32, goal: u32) -> io::Result<()> {
     let mut out = String::with_capacity(c.w * c.h * 8);
     out.push_str("\x1b[H");
     out.push_str("\x1b[0m  replicante  ·  petri dish\x1b[K\n");
@@ -357,7 +344,8 @@ mod tests {
 
     #[test]
     fn lineage_matches_spawn() {
-        assert_eq!(format!("{}.{}", "0", 1), "0.1");
-        assert_eq!(format!("{}.{}", "0.1", 2), "0.1.2");
+        assert_eq!(crate::child_lineage("0", 0), "0.1");
+        assert_eq!(crate::child_lineage("0.1", 0), "0.1.1");
+        assert_eq!(crate::child_lineage("0", 1), "0.2");
     }
 }
