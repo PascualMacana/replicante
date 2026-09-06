@@ -80,4 +80,5 @@ The child still needs `rustc` / `cargo` to become runnable.
 
 ## Related
 
-[mejorante](https://github.com/PascualMacana/mejorante) is a sibling that copies itself and also tries to improve.
+[mejorante](https://github.com/PascualMacana/mejorante) is a sibling that copies itself and also tries to improve.  
+[demostrante](https://github.com/PascualMacana/demostrante) is a sibling that only writes a claimed improvement when a checkable proof says so.
